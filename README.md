@@ -1,6 +1,6 @@
 # ERP ↔ Shopify Custom App Connector
 
-هذا المشروع هو **MVP** جاهز للبدء لربط ERP (مثل فونيكس) مع Shopify باستخدام Custom App.
+هذا المشروع هو **MVP** لربط ERP (مثل فونيكس) مع Shopify باستخدام Custom App، لكنه **لن يعمل في بيئة حقيقية بدون المدخلات المطلوبة**.
 
 ## ماذا يفعل؟
 
@@ -9,6 +9,16 @@
 - سحب طلبات Shopify برمجيًا من Admin REST API.
 - تحديث المخزون على Shopify من ERP.
 - توفير نقاط تمديد واضحة لربط API الخاص بالـ ERP.
+
+## المدخلات المطلوبة (إجباري)
+
+- `SHOPIFY_SHOP_DOMAIN`
+- `SHOPIFY_ADMIN_ACCESS_TOKEN`
+- `SHOPIFY_WEBHOOK_SECRET`
+- `ERP_BASE_URL` (مطلوب عند دفع الطلبات إلى ERP)
+- `ERP_API_KEY` (مطلوب عند دفع الطلبات إلى ERP)
+
+> إذا أي قيمة من القيم الإلزامية ناقصة، الكود سيرجع خطأ واضح بدل ما "يكمل صامت".
 
 ## المتطلبات
 
@@ -33,6 +43,8 @@ cp .env.example .env
 - `SHOPIFY_ADMIN_ACCESS_TOKEN`: Access Token من Custom App
 - `SHOPIFY_API_VERSION`: مثل `2024-10`
 - `SHOPIFY_WEBHOOK_SECRET`: Webhook shared secret
+- `ERP_BASE_URL`: رابط ERP API
+- `ERP_API_KEY`: مفتاح ERP API
 
 3. شغّل اختبار الوحدة:
 
@@ -47,7 +59,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 ```python
 from connector import ShopifyConnector, ShopifyConfig
 
-cfg = ShopifyConfig.from_env()
+cfg = ShopifyConfig.from_env()  # يتأكد من القيم المطلوبة
 client = ShopifyConnector(cfg)
 orders = client.fetch_orders(limit=20)
 print(orders)
@@ -79,4 +91,3 @@ print(result)
 - استخدم idempotency key لمنع تكرار معالجة نفس الحدث.
 - لا تخزن الأسرار داخل الكود؛ استخدم Vault/Secrets Manager.
 - يفضل الانتقال إلى GraphQL Admin API حسب الحاجة للأداء.
-

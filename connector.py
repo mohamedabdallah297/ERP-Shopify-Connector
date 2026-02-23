@@ -13,6 +13,10 @@ from urllib import request
 from urllib.error import HTTPError
 
 
+class ConfigError(ValueError):
+    """Raised when mandatory connector configuration is missing."""
+
+
 @dataclass(frozen=True)
 class ShopifyConfig:
     shop_domain: str
@@ -22,16 +26,26 @@ class ShopifyConfig:
 
     @classmethod
     def from_env(cls) -> "ShopifyConfig":
-        return cls(
-            shop_domain=os.getenv("SHOPIFY_SHOP_DOMAIN", ""),
-            admin_access_token=os.getenv("SHOPIFY_ADMIN_ACCESS_TOKEN", ""),
-            api_version=os.getenv("SHOPIFY_API_VERSION", "2024-10"),
-            webhook_secret=os.getenv("SHOPIFY_WEBHOOK_SECRET", ""),
+        cfg = cls(
+            shop_domain=os.getenv("SHOPIFY_SHOP_DOMAIN", "").strip(),
+            admin_access_token=os.getenv("SHOPIFY_ADMIN_ACCESS_TOKEN", "").strip(),
+            api_version=os.getenv("SHOPIFY_API_VERSION", "2024-10").strip(),
+            webhook_secret=os.getenv("SHOPIFY_WEBHOOK_SECRET", "").strip(),
         )
+        cfg.validate(required=("shop_domain", "admin_access_token", "webhook_secret"))
+        return cfg
+
+    def validate(self, required: tuple[str, ...] = ("shop_domain", "admin_access_token")) -> None:
+        missing = [name for name in required if not getattr(self, name)]
+        if missing:
+            raise ConfigError(
+                "Missing required Shopify config values: " + ", ".join(missing)
+            )
 
 
 class ShopifyConnector:
     def __init__(self, config: ShopifyConfig) -> None:
+        config.validate()
         self.config = config
 
     @property
@@ -85,6 +99,8 @@ class ShopifyConnector:
 
 
 def verify_shopify_webhook(payload: bytes, hmac_header: str, secret: str) -> bool:
+    if not secret:
+        raise ConfigError("SHOPIFY_WEBHOOK_SECRET is required to verify webhooks.")
     digest = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).digest()
     computed = base64.b64encode(digest).decode("utf-8")
     return hmac.compare_digest(computed, hmac_header)

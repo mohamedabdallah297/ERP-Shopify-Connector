@@ -10,12 +10,19 @@ from urllib import request
 from connector import ShopifyConfig, ShopifyConnector, verify_shopify_webhook
 
 
+class ERPConfigError(ValueError):
+    """Raised when ERP endpoint configuration is incomplete."""
+
+
 def _post_to_erp(endpoint: str, payload: dict[str, Any]) -> None:
     """Placeholder ERP POST. Replace mapping and auth as required by Phoenix ERP API."""
-    erp_base = os.getenv("ERP_BASE_URL", "")
-    erp_key = os.getenv("ERP_API_KEY", "")
+    erp_base = os.getenv("ERP_BASE_URL", "").strip()
+    erp_key = os.getenv("ERP_API_KEY", "").strip()
+
     if not erp_base:
-        return
+        raise ERPConfigError("ERP_BASE_URL is required to push mapped orders to ERP.")
+    if not erp_key:
+        raise ERPConfigError("ERP_API_KEY is required to authenticate ERP requests.")
 
     url = f"{erp_base.rstrip('/')}/{endpoint.lstrip('/')}"
     data = json.dumps(payload).encode("utf-8")
