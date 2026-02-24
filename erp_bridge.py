@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 from typing import Any
@@ -14,15 +15,30 @@ class ERPConfigError(ValueError):
     """Raised when ERP endpoint configuration is incomplete."""
 
 
+def _erp_auth_header() -> str:
+    mode = os.getenv("ERP_AUTH_MODE", "bearer").strip().lower()
+
+    if mode == "basic":
+        username = os.getenv("ERP_USERNAME", "").strip()
+        password = os.getenv("ERP_PASSWORD", "").strip()
+        if not username or not password:
+            raise ERPConfigError("ERP_USERNAME and ERP_PASSWORD are required for ERP_AUTH_MODE=basic.")
+        token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("utf-8")
+        return f"Basic {token}"
+
+    # default: bearer
+    erp_key = os.getenv("ERP_API_KEY", "").strip()
+    if not erp_key:
+        raise ERPConfigError("ERP_API_KEY is required for ERP_AUTH_MODE=bearer.")
+    return f"Bearer {erp_key}"
+
+
 def _post_to_erp(endpoint: str, payload: dict[str, Any]) -> None:
     """Placeholder ERP POST. Replace mapping and auth as required by Phoenix ERP API."""
     erp_base = os.getenv("ERP_BASE_URL", "").strip()
-    erp_key = os.getenv("ERP_API_KEY", "").strip()
 
     if not erp_base:
         raise ERPConfigError("ERP_BASE_URL is required to push mapped orders to ERP.")
-    if not erp_key:
-        raise ERPConfigError("ERP_API_KEY is required to authenticate ERP requests.")
 
     url = f"{erp_base.rstrip('/')}/{endpoint.lstrip('/')}"
     data = json.dumps(payload).encode("utf-8")
@@ -31,7 +47,7 @@ def _post_to_erp(endpoint: str, payload: dict[str, Any]) -> None:
         method="POST",
         headers={
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {erp_key}",
+            "Authorization": _erp_auth_header(),
         },
         data=data,
     )
